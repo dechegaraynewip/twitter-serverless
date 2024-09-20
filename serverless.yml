@@ -1,0 +1,71 @@
+org: newipsolutionsservelesstesting
+app: twitter-app-testing-integration
+service: twitter-testing-aws
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-west-1
+  profile: tu-perfil
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+      Resource:
+        - arn:aws:dynamodb:us-west-1:*:table/Messages
+        - arn:aws:dynamodb:us-west-1:*:table/GitHubEvents # Añadir permisos para la tabla GitHubEvents
+
+plugins:
+  - serverless-offline
+
+functions:
+  getTwitterMessages:
+    handler: handler.getTwitterMessages
+    events:
+      - http:
+          path: getMessages
+          method: get
+
+  sendTwitterMessage:
+    handler: handler.sendTwitterMessage
+    events:
+      - http:
+          path: sendMessage/{id}
+          method: post
+          request:
+            parameters:
+              querystrings:
+                text: true # Asegura que el parámetro 'text' es obligatorio en la URL
+
+  githubWebhookHandler:
+    handler: handler.githubWebhookHandler
+    events:
+      - http:
+          path: github-webhook
+          method: post
+
+resources:
+  Resources:
+    MessagesTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: Messages
+        AttributeDefinitions:
+          - AttributeName: MessageId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: MessageId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+
+    GitHubEventsTable: # Añadir nueva tabla para eventos de GitHub
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: GitHubEvents
+        AttributeDefinitions:
+          - AttributeName: EventId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: EventId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
